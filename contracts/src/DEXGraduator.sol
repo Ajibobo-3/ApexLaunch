@@ -59,10 +59,12 @@ contract DEXGraduator is Ownable, ReentrancyGuard {
      * @param token Address of the ERC-20 token being graduated
      * @param tokenAmount Amount of tokens to add as DEX liquidity
      */
-    function graduate(
-        address token,
-        uint256 tokenAmount
-    ) external payable nonReentrant returns (address pair, uint256 lpBurned) {
+    function graduate(address token, uint256 tokenAmount)
+        external
+        payable
+        nonReentrant
+        returns (address pair, uint256 lpBurned)
+    {
         require(msg.value > 0, "No ETH provided");
         require(tokenAmount > 0, "No tokens provided");
         require(IERC20(token).balanceOf(address(this)) >= tokenAmount, "Insufficient token balance");
@@ -71,7 +73,8 @@ contract DEXGraduator is Ownable, ReentrancyGuard {
         IERC20(token).approve(dexRouter, tokenAmount);
 
         // Add liquidity with dead address as recipient
-        (uint256 amountTokenUsed, uint256 amountETHUsed, uint256 liquidity) = IUniswapV2Router02(dexRouter).addLiquidityETH{value: msg.value}(
+        (uint256 amountTokenUsed, uint256 amountETHUsed, uint256 liquidity) = IUniswapV2Router02(dexRouter)
+        .addLiquidityETH{value: msg.value}(
             token,
             tokenAmount,
             0, // Accept any slippage for initial pool creation
@@ -87,7 +90,7 @@ contract DEXGraduator is Ownable, ReentrancyGuard {
         // Refund any leftover ETH or tokens back to caller
         if (msg.value > amountETHUsed) {
             uint256 ethRefund = msg.value - amountETHUsed;
-            (bool success, ) = payable(msg.sender).call{value: ethRefund}("");
+            (bool success,) = payable(msg.sender).call{value: ethRefund}("");
             require(success, "ETH refund failed");
         }
         if (tokenAmount > amountTokenUsed) {
@@ -95,14 +98,7 @@ contract DEXGraduator is Ownable, ReentrancyGuard {
             IERC20(token).safeTransfer(msg.sender, tokenRefund);
         }
 
-        emit LiquidityGraduated(
-            token,
-            msg.sender,
-            pair,
-            amountETHUsed,
-            amountTokenUsed,
-            liquidity
-        );
+        emit LiquidityGraduated(token, msg.sender, pair, amountETHUsed, amountTokenUsed, liquidity);
 
         return (pair, liquidity);
     }

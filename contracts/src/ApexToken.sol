@@ -19,12 +19,10 @@ contract ApexToken is ERC20, ERC20Burnable, ERC20Permit {
 
     event MetadataUpdated(string newTokenURI);
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        string memory tokenURI_,
-        address creator_
-    ) ERC20(name_, symbol_) ERC20Permit(name_) {
+    constructor(string memory name_, string memory symbol_, string memory tokenURI_, address creator_)
+        ERC20(name_, symbol_)
+        ERC20Permit(name_)
+    {
         require(creator_ != address(0), "Invalid creator");
 
         tokenURI = tokenURI_;

@@ -17,20 +17,20 @@ contract BondingCurvePool is ReentrancyGuard {
 
     // --- Constants ---
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000 * 10 ** 18; // 1 Billion tokens
-    uint256 public constant CURVE_SUPPLY = 800_000_000 * 10 ** 18;    // 800 Million tokens (80%)
-    uint256 public constant DEX_RESERVE = 200_000_000 * 10 ** 18;     // 200 Million tokens (20%)
-    uint256 public constant GRADUATION_THRESHOLD = 4.2 ether;          // 4.2 ETH accumulated
-    uint256 public constant SWAP_FEE_BPS = 100;                        // 1% (100 / 10000)
+    uint256 public constant CURVE_SUPPLY = 800_000_000 * 10 ** 18; // 800 Million tokens (80%)
+    uint256 public constant DEX_RESERVE = 200_000_000 * 10 ** 18; // 200 Million tokens (20%)
+    uint256 public constant GRADUATION_THRESHOLD = 4.2 ether; // 4.2 ETH accumulated
+    uint256 public constant SWAP_FEE_BPS = 100; // 1% (100 / 10000)
     uint256 public constant BPS_DENOMINATOR = 10_000;
 
     // Mathematical curve constants:
     // Spot Price P(s) = P0 + (K_NUM * s) / (K_DEN_BASE)
     // Integral from s to s+ds = (P0 * ds) / 1e18 + (K_NUM * ds * (2s + ds)) / K_DEN
     // At s = 0 to 800M tokens, total ETH integral = 4.2 ETH exactly.
-    uint256 public constant P0 = 1_000_000_000;                       // 1 Gwei base spot price
+    uint256 public constant P0 = 1_000_000_000; // 1 Gwei base spot price
     uint256 public constant K_NUM = 85;
     uint256 public constant K_DEN = 16 * 10 ** 36;
-    uint256 public constant C1_BASE = 16 * 10 ** 27;                  // (K_DEN * P0) / 1e18
+    uint256 public constant C1_BASE = 16 * 10 ** 27; // (K_DEN * P0) / 1e18
 
     // --- State Variables ---
     address public immutable token;
@@ -79,12 +79,7 @@ contract BondingCurvePool is ReentrancyGuard {
 
     event EmergencySweep(address indexed token, uint256 amount);
 
-    constructor(
-        address _token,
-        address _creator,
-        address _feeRecipient,
-        address _dexGraduator
-    ) {
+    constructor(address _token, address _creator, address _feeRecipient, address _dexGraduator) {
         require(_token != address(0), "Invalid token");
         require(_creator != address(0), "Invalid creator");
         require(_feeRecipient != address(0), "Invalid feeRecipient");
@@ -159,21 +154,37 @@ contract BondingCurvePool is ReentrancyGuard {
     }
 
     /**
+     * @notice Calculates tokens purchasable with a given ETH amount (inverse of calculateCostForTokens).
+     * Uses quadratic formula to solve for tokens given ETH.
+     */
+    function calculateTokensForEth(uint256 currentSupply, uint256 ethAmount) public pure returns (uint256) {
+        if (ethAmount == 0) return 0;
+        uint256 c1 = C1_BASE + (2 * K_NUM * currentSupply);
+        uint256 c0 = K_DEN * ethAmount;
+        uint256 d = (c1 * c1) + (4 * K_NUM * c0);
+        uint256 sqrtD = Math.sqrt(d);
+        return (sqrtD - c1) / (2 * K_NUM);
+    }
+
+    /**
      * @notice Calculates buy quote: tokens received, platform swap fee, and anti-snipe tax.
      */
-    function calculateBuyQuote(
-        uint256 ethAmountIn
-    ) public view returns (uint256 tokensOut, uint256 fee, uint256 antiSnipeTax) {
+    function calculateBuyQuote(uint256 ethAmountIn)
+        public
+        view
+        returns (uint256 tokensOut, uint256 fee, uint256 antiSnipeTax)
+    {
         return calculateBuyQuoteFor(ethAmountIn, msg.sender);
     }
 
     /**
      * @notice Calculates buy quote considering whether buyer is exempt (e.g. factory dev-buy bundle).
      */
-    function calculateBuyQuoteFor(
-        uint256 ethAmountIn,
-        address buyer
-    ) public view returns (uint256 tokensOut, uint256 fee, uint256 antiSnipeTax) {
+    function calculateBuyQuoteFor(uint256 ethAmountIn, address buyer)
+        public
+        view
+        returns (uint256 tokensOut, uint256 fee, uint256 antiSnipeTax)
+    {
         if (ethAmountIn == 0 || graduated) return (0, 0, 0);
 
         fee = (ethAmountIn * SWAP_FEE_BPS) / BPS_DENOMINATOR;
@@ -199,19 +210,33 @@ contract BondingCurvePool is ReentrancyGuard {
         uint256 d = (c1 * c1) + (4 * K_NUM * c0);
         uint256 sqrtD = Math.sqrt(d);
 
+        // Round down in pool's favor (fewer tokens)
         tokensOut = (sqrtD - c1) / (2 * K_NUM);
 
         if (tokensOut > remainingCurveTokens) {
             tokensOut = remainingCurveTokens;
+        }
+
+        // Cap at graduation threshold
+        uint256 ethForTokens = calculateCostForTokens(supplySold, tokensOut);
+        uint256 newEthReserve = ethReserve + ethForTokens;
+        if (newEthReserve > GRADUATION_THRESHOLD) {
+            uint256 ethToGraduation = GRADUATION_THRESHOLD - ethReserve;
+            tokensOut = calculateTokensForEth(supplySold, ethToGraduation);
+            // Recalculate exact ETH needed
+            ethForTokens = calculateCostForTokens(supplySold, tokensOut);
+            // Ensure we don't exceed threshold
+            if (ethReserve + ethForTokens > GRADUATION_THRESHOLD) {
+                ethForTokens = GRADUATION_THRESHOLD - ethReserve;
+                tokensOut = calculateTokensForEth(supplySold, ethForTokens);
+            }
         }
     }
 
     /**
      * @notice Calculates sell quote: net ETH returned and platform swap fee.
      */
-    function calculateSellQuote(
-        uint256 tokenAmountIn
-    ) public view returns (uint256 ethRefundNet, uint256 fee) {
+    function calculateSellQuote(uint256 tokenAmountIn) public view returns (uint256 ethRefundNet, uint256 fee) {
         if (tokenAmountIn == 0 || graduated || supplySold == 0) return (0, 0);
 
         uint256 amountToSell = tokenAmountIn > supplySold ? supplySold : tokenAmountIn;
@@ -226,6 +251,7 @@ contract BondingCurvePool is ReentrancyGuard {
         }
 
         fee = (grossEth * SWAP_FEE_BPS) / BPS_DENOMINATOR;
+        // Round down in pool's favor (less ETH refunded)
         ethRefundNet = grossEth > fee ? grossEth - fee : 0;
     }
 
@@ -236,10 +262,7 @@ contract BondingCurvePool is ReentrancyGuard {
      * @param minTokensOut Slippage protection minimum tokens out
      * @param recipient Recipient of the purchased tokens
      */
-    function buy(
-        uint256 minTokensOut,
-        address recipient
-    ) external payable nonReentrant returns (uint256 tokensOut) {
+    function buy(uint256 minTokensOut, address recipient) external payable nonReentrant returns (uint256 tokensOut) {
         require(!graduated, "Curve graduated");
         require(msg.value > 0, "No ETH sent");
         require(recipient != address(0), "Invalid recipient");
@@ -255,13 +278,13 @@ contract BondingCurvePool is ReentrancyGuard {
 
         // Forward platform fee to fee recipient
         if (fee > 0) {
-            (bool feeOk, ) = payable(feeRecipient).call{value: fee}("");
+            (bool feeOk,) = payable(feeRecipient).call{value: fee}("");
             require(feeOk, "Fee transfer failed");
         }
 
         // Anti-snipe tax is sent to feeRecipient / treasury
         if (antiSnipeTax > 0) {
-            (bool taxOk, ) = payable(feeRecipient).call{value: antiSnipeTax}("");
+            (bool taxOk,) = payable(feeRecipient).call{value: antiSnipeTax}("");
             require(taxOk, "Tax transfer failed");
         }
 
@@ -276,16 +299,40 @@ contract BondingCurvePool is ReentrancyGuard {
         uint256 remainingCurve = CURVE_SUPPLY - supplySold;
         uint256 ethToCurve = effectiveEth;
 
-        // If buy exceeds remaining curve supply, cap it and refund unused ETH
+        // Cap at remaining curve supply FIRST
         if (tokensOut > remainingCurve) {
             tokensOut = remainingCurve;
-            uint256 exactEthNeeded = calculateCostForTokens(supplySold, tokensOut);
-            if (effectiveEth > exactEthNeeded) {
-                uint256 refundEth = effectiveEth - exactEthNeeded;
-                ethToCurve = exactEthNeeded;
-                (bool refundOk, ) = payable(msg.sender).call{value: refundEth}("");
-                require(refundOk, "ETH refund failed");
+        }
+
+        // Cap at graduation threshold (4.2 ETH)
+        uint256 exactEthNeeded = calculateCostForTokens(supplySold, tokensOut);
+        uint256 newEthReserve = ethReserve + exactEthNeeded;
+
+        if (newEthReserve > GRADUATION_THRESHOLD) {
+            // Calculate exact ETH needed to reach threshold
+            uint256 ethToGraduation = GRADUATION_THRESHOLD - ethReserve;
+            // Recalculate tokens for exact ETH to threshold
+            tokensOut = calculateTokensForEth(supplySold, ethToGraduation);
+            // Ensure we don't exceed remaining curve
+            if (tokensOut > remainingCurve) {
+                tokensOut = remainingCurve;
             }
+            // Recalculate exact ETH needed
+            exactEthNeeded = calculateCostForTokens(supplySold, tokensOut);
+            // Ensure we don't exceed threshold
+            if (ethReserve + exactEthNeeded > GRADUATION_THRESHOLD) {
+                exactEthNeeded = GRADUATION_THRESHOLD - ethReserve;
+            }
+        }
+
+        // Refund any excess ETH
+        if (effectiveEth > exactEthNeeded) {
+            uint256 refundEth = effectiveEth - exactEthNeeded;
+            ethToCurve = exactEthNeeded;
+            (bool refundOk,) = payable(msg.sender).call{value: refundEth}("");
+            require(refundOk, "ETH refund failed");
+        } else {
+            ethToCurve = exactEthNeeded;
         }
 
         require(tokensOut >= minTokensOut, "Slippage: below minTokensOut");
@@ -297,18 +344,9 @@ contract BondingCurvePool is ReentrancyGuard {
         // Transfer tokens to recipient
         IERC20(token).safeTransfer(recipient, tokensOut);
 
-        emit Buy(
-            msg.sender,
-            recipient,
-            ethIn,
-            tokensOut,
-            fee,
-            antiSnipeTax,
-            supplySold,
-            getCurrentPrice()
-        );
+        emit Buy(msg.sender, recipient, ethIn, tokensOut, fee, antiSnipeTax, supplySold, getCurrentPrice());
 
-        // Check graduation condition
+        // Check graduation condition (only if we reached exactly at threshold)
         if (ethReserve >= GRADUATION_THRESHOLD || supplySold >= CURVE_SUPPLY) {
             _graduate();
         }
@@ -320,11 +358,11 @@ contract BondingCurvePool is ReentrancyGuard {
      * @param minEthOut Slippage protection minimum ETH out
      * @param recipient Recipient of the ETH refund
      */
-    function sell(
-        uint256 tokenAmount,
-        uint256 minEthOut,
-        address recipient
-    ) external nonReentrant returns (uint256 ethRefundNet) {
+    function sell(uint256 tokenAmount, uint256 minEthOut, address recipient)
+        external
+        nonReentrant
+        returns (uint256 ethRefundNet)
+    {
         require(!graduated, "Curve graduated");
         require(tokenAmount > 0, "Zero tokens to sell");
         require(supplySold >= tokenAmount, "Cannot sell more than sold");
@@ -352,23 +390,15 @@ contract BondingCurvePool is ReentrancyGuard {
 
         // Forward platform fee
         if (fee > 0) {
-            (bool feeOk, ) = payable(feeRecipient).call{value: fee}("");
+            (bool feeOk,) = payable(feeRecipient).call{value: fee}("");
             require(feeOk, "Fee transfer failed");
         }
 
         // Send net ETH to recipient
-        (bool refundOk, ) = payable(recipient).call{value: ethRefundNet}("");
+        (bool refundOk,) = payable(recipient).call{value: ethRefundNet}("");
         require(refundOk, "ETH refund transfer failed");
 
-        emit Sell(
-            msg.sender,
-            recipient,
-            tokenAmount,
-            ethRefundNet,
-            fee,
-            supplySold,
-            getCurrentPrice()
-        );
+        emit Sell(msg.sender, recipient, tokenAmount, ethRefundNet, fee, supplySold, getCurrentPrice());
     }
 
     /**
@@ -380,18 +410,20 @@ contract BondingCurvePool is ReentrancyGuard {
         uint256 ethToMigrate = ethReserve;
         ethReserve = 0;
 
+        // Calculate remaining tokens for DEX (TOTAL_SUPPLY - supplySold)
+        uint256 remainingTokens = TOTAL_SUPPLY - supplySold;
+        // Ensure we don't exceed DEX_RESERVE
+        uint256 tokensToMigrate = remainingTokens > DEX_RESERVE ? DEX_RESERVE : remainingTokens;
+
         // Transfer DEX reserve tokens to dexGraduator
-        IERC20(token).safeTransfer(address(dexGraduator), DEX_RESERVE);
+        IERC20(token).safeTransfer(address(dexGraduator), tokensToMigrate);
 
         // Call DEXGraduator with ETH
-        (address pair, uint256 lpBurned) = dexGraduator.graduate{value: ethToMigrate}(
-            token,
-            DEX_RESERVE
-        );
+        (address pair, uint256 lpBurned) = dexGraduator.graduate{value: ethToMigrate}(token, tokensToMigrate);
 
         dexPair = pair;
 
-        emit PoolGraduated(token, pair, ethToMigrate, DEX_RESERVE, lpBurned);
+        emit PoolGraduated(token, pair, ethToMigrate, tokensToMigrate, lpBurned);
     }
 
     /**

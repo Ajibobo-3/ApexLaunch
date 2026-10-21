@@ -43,10 +43,7 @@ contract LaunchpadFactory is Ownable, ReentrancyGuard {
     event FeeRecipientUpdated(address newFeeRecipient);
     event DEXGraduatorUpdated(address newGraduator);
 
-    constructor(
-        address _feeRecipient,
-        address _dexGraduator
-    ) Ownable(msg.sender) {
+    constructor(address _feeRecipient, address _dexGraduator) Ownable(msg.sender) {
         require(_feeRecipient != address(0), "Invalid fee recipient");
         require(_dexGraduator != address(0), "Invalid graduator");
 
@@ -122,7 +119,7 @@ contract LaunchpadFactory is Ownable, ReentrancyGuard {
 
         // Collect platform creation fee
         if (creationFee > 0) {
-            (bool feeOk, ) = payable(feeRecipient).call{value: creationFee}("");
+            (bool feeOk,) = payable(feeRecipient).call{value: creationFee}("");
             require(feeOk, "Creation fee transfer failed");
         }
 
@@ -131,12 +128,7 @@ contract LaunchpadFactory is Ownable, ReentrancyGuard {
         tokenAddress = address(token);
 
         // 2. Deploy the BondingCurvePool
-        BondingCurvePool pool = new BondingCurvePool(
-            tokenAddress,
-            msg.sender,
-            feeRecipient,
-            dexGraduator
-        );
+        BondingCurvePool pool = new BondingCurvePool(tokenAddress, msg.sender, feeRecipient, dexGraduator);
         poolAddress = address(pool);
 
         // 3. Fund pool with the total supply
@@ -153,21 +145,33 @@ contract LaunchpadFactory is Ownable, ReentrancyGuard {
         // 5. Execute initial dev-buy bundle if extra ETH was provided
         uint256 initialTokens = 0;
         if (initialBuyEth > 0) {
-            initialTokens = pool.buy{value: initialBuyEth}(minInitialBuyTokens, msg.sender);
+            // Record factory balance before buy to capture any refunds
+            uint256 factoryBalanceBefore = address(this).balance;
+
+            // Buy tokens to factory first (refunds go to factory as msg.sender)
+            initialTokens = pool.buy{value: initialBuyEth}(minInitialBuyTokens, address(this));
+
+            // Transfer purchased tokens to creator
+            IERC20(tokenAddress).safeTransfer(msg.sender, initialTokens);
+
+            // Forward any refunded ETH back to creator
+            uint256 factoryBalanceAfter = address(this).balance;
+            if (factoryBalanceAfter > factoryBalanceBefore) {
+                uint256 refundEth = factoryBalanceAfter - factoryBalanceBefore;
+                (bool refundOk,) = payable(msg.sender).call{value: refundEth}("");
+                require(refundOk, "Creator refund transfer failed");
+            }
         }
 
         emit TokenCreated(
-            tokenAddress,
-            poolAddress,
-            msg.sender,
-            name,
-            symbol,
-            tokenURI,
-            initialBuyEth,
-            initialTokens,
-            block.timestamp
+            tokenAddress, poolAddress, msg.sender, name, symbol, tokenURI, initialBuyEth, initialTokens, block.timestamp
         );
 
         return (tokenAddress, poolAddress);
     }
+
+    /**
+     * @notice Accept ETH refunds from pool during initial creator buy
+     */
+    receive() external payable {}
 }

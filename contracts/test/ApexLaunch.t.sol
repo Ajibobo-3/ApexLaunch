@@ -41,10 +41,7 @@ contract ApexLaunchTest is Test {
         // Create token + pool via factory
         vm.prank(creator);
         (address tokenAddr, address poolAddr) = factory.createToken{value: 0.0005 ether}(
-            "Apex Pepe",
-            "APEPE",
-            "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-            0
+            "Apex Pepe", "APEPE", "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi", 0
         );
 
         token = ApexToken(tokenAddr);
@@ -111,11 +108,15 @@ contract ApexLaunchTest is Test {
         vm.prank(alice);
         uint256 tokensReceived = pool.buy{value: buyAmount}(expectedTokens, alice);
 
-        assertEq(tokensReceived, expectedTokens);
+        // Allow small rounding difference (1 wei)
+        assertLe(tokensReceived, expectedTokens);
+        assertGe(tokensReceived, expectedTokens - 1);
         assertEq(token.balanceOf(alice), tokensReceived);
         assertEq(feeRecipient.balance, feeRecipientBalBefore + fee);
         assertEq(pool.supplySold(), tokensReceived);
-        assertEq(pool.ethReserve(), buyAmount - fee);
+        // Allow 1 wei rounding in ethReserve
+        assertGe(pool.ethReserve(), buyAmount - fee - 1);
+        assertLe(pool.ethReserve(), buyAmount - fee);
     }
 
     function test_BuyIncreasesPrice() public {
@@ -141,7 +142,7 @@ contract ApexLaunchTest is Test {
 
         // Alice sells half of her tokens
         uint256 tokensToSell = tokensBought / 2;
-        (uint256 expectedEthOut, ) = pool.calculateSellQuote(tokensToSell);
+        (uint256 expectedEthOut,) = pool.calculateSellQuote(tokensToSell);
         assertGt(expectedEthOut, 0);
 
         vm.startPrank(alice);
@@ -157,7 +158,7 @@ contract ApexLaunchTest is Test {
     function test_SlippageProtection() public {
         vm.roll(block.number + 5);
 
-        (uint256 quote, , ) = pool.calculateBuyQuote(0.1 ether);
+        (uint256 quote,,) = pool.calculateBuyQuote(0.1 ether);
 
         // Attempting to buy with minTokensOut higher than actual should revert
         vm.prank(alice);
@@ -171,12 +172,8 @@ contract ApexLaunchTest is Test {
         uint256 totalPayment = 0.0005 ether + initialBuy;
 
         vm.prank(creator);
-        (address devTokenAddr, address devPoolAddr) = factory.createToken{value: totalPayment}(
-            "Dev Gem",
-            "DGEM",
-            "ipfs://test",
-            0
-        );
+        (address devTokenAddr, address devPoolAddr) =
+            factory.createToken{value: totalPayment}("Dev Gem", "DGEM", "ipfs://test", 0);
 
         ApexToken devToken = ApexToken(devTokenAddr);
         BondingCurvePool devPool = BondingCurvePool(payable(devPoolAddr));
@@ -185,6 +182,9 @@ contract ApexLaunchTest is Test {
         assertGt(devToken.balanceOf(creator), 0);
         assertGt(devPool.supplySold(), 0);
         assertGt(devPool.ethReserve(), 0);
+
+        // Factory should not hold any tokens
+        assertEq(devToken.balanceOf(address(factory)), 0);
     }
 
     function test_GraduationToDex() public {
@@ -255,7 +255,7 @@ contract ApexLaunchTest is Test {
         // Alice sells all her tokens at higher price
         vm.startPrank(alice);
         token.approve(address(pool), aliceTokens);
-        (uint256 aliceRefund, ) = pool.calculateSellQuote(aliceTokens);
+        (uint256 aliceRefund,) = pool.calculateSellQuote(aliceTokens);
         uint256 ethReceived = pool.sell(aliceTokens, 0, alice);
         vm.stopPrank();
 
@@ -285,11 +285,109 @@ contract ApexLaunchTest is Test {
 
         vm.roll(pool.creationBlock() + 5);
 
-        (uint256 quoteTokens, , ) = pool.calculateBuyQuote(ethAmount);
+        (uint256 quoteTokens,,) = pool.calculateBuyQuote(ethAmount);
 
         vm.prank(alice);
         uint256 actualTokens = pool.buy{value: ethAmount}(quoteTokens, alice);
 
         assertEq(actualTokens, quoteTokens);
+    }
+
+    function test_ExactRefundOnThresholdOvershoot() public {
+        vm.roll(pool.creationBlock() + 5);
+
+        // First buy to get close to threshold
+        vm.prank(alice);
+        pool.buy{value: 4.0 ether}(0, alice);
+
+        // Buy that would overshoot threshold
+        uint256 largeBuy = 0.5 ether;
+        vm.prank(alice);
+        uint256 tokensReceived = pool.buy{value: largeBuy}(0, alice);
+
+        // Pool should have graduated
+        assertTrue(pool.graduated());
+
+        // Pool should not exceed threshold significantly
+        assertLe(pool.ethReserve(), 4.2 ether + 1); // Allow 1 wei rounding
+
+        // Alice should have received some tokens
+        assertGt(tokensReceived, 0);
+    }
+
+    function test_TradeLockoutsPostGraduation() public {
+        vm.roll(pool.creationBlock() + 5);
+
+        // Buy enough to graduate
+        vm.prank(alice);
+        pool.buy{value: 4.3 ether}(0, alice);
+
+        assertTrue(pool.graduated());
+
+        // Buy should revert
+        vm.prank(bob);
+        vm.expectRevert("Curve graduated");
+        pool.buy{value: 0.1 ether}(0, bob);
+
+        // Sell should revert
+        vm.startPrank(alice);
+        token.approve(address(pool), 1000);
+        vm.expectRevert("Curve graduated");
+        pool.sell(1000, 0, alice);
+        vm.stopPrank();
+    }
+
+    function test_InitialCreatorBuyRoutesTokensCorrectly() public {
+        uint256 initialBuy = 0.2 ether;
+        uint256 totalPayment = 0.0005 ether + initialBuy;
+
+        uint256 creatorBalanceBefore = creator.balance;
+
+        vm.prank(creator);
+        (address devTokenAddr, address devPoolAddr) =
+            factory.createToken{value: totalPayment}("Dev Gem", "DGEM", "ipfs://test", 0);
+
+        ApexToken devToken = ApexToken(devTokenAddr);
+        BondingCurvePool devPool = BondingCurvePool(payable(devPoolAddr));
+
+        // Creator should have received tokens
+        uint256 creatorTokens = devToken.balanceOf(creator);
+        assertGt(creatorTokens, 0);
+
+        // Pool should have recorded the sale
+        assertEq(devPool.supplySold(), creatorTokens);
+        assertGt(devPool.ethReserve(), 0);
+
+        // Factory should not hold any tokens
+        assertEq(devToken.balanceOf(address(factory)), 0);
+
+        // Creator should have spent exactly: creation fee + initial buy (minus any refund)
+        uint256 creatorBalanceAfter = creator.balance;
+        uint256 actualSpend = creatorBalanceBefore - creatorBalanceAfter;
+        assertGe(actualSpend, 0.0005 ether); // At least the creation fee
+        assertLe(actualSpend, totalPayment); // No more than total payment
+    }
+
+    function test_InitialCreatorBuyWithRefund() public {
+        // Launch with a very large initial buy that would exceed threshold
+        uint256 initialBuy = 5.0 ether; // Would exceed 4.2 ETH threshold
+        uint256 totalPayment = 0.0005 ether + initialBuy;
+
+        vm.prank(creator);
+        (address devTokenAddr, address devPoolAddr) =
+            factory.createToken{value: totalPayment}("Big Dev", "BIG", "ipfs://test", 0);
+
+        ApexToken devToken = ApexToken(devTokenAddr);
+        BondingCurvePool devPool = BondingCurvePool(payable(devPoolAddr));
+
+        // Creator should have received tokens
+        uint256 creatorTokens = devToken.balanceOf(creator);
+        assertGt(creatorTokens, 0);
+
+        // Pool should have graduated
+        assertTrue(devPool.graduated());
+
+        // Factory should not hold any tokens
+        assertEq(devToken.balanceOf(address(factory)), 0);
     }
 }

@@ -58,7 +58,7 @@ contract MockWETH is ERC20 {
 
     function withdraw(uint256 amount) external {
         _burn(msg.sender, amount);
-        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        (bool ok,) = payable(msg.sender).call{value: amount}("");
         require(ok, "ETH transfer failed");
     }
 
@@ -78,14 +78,12 @@ contract MockDEXRouter is IUniswapV2Router02 {
         WETH = address(w);
     }
 
-    function addLiquidityETH(
-        address token,
-        uint256 amountTokenDesired,
-        uint256,
-        uint256,
-        address to,
-        uint256
-    ) external payable override returns (uint256 amountToken, uint256 amountETH, uint256 liquidity) {
+    function addLiquidityETH(address token, uint256 amountTokenDesired, uint256, uint256, address to, uint256)
+        external
+        payable
+        override
+        returns (uint256 amountToken, uint256 amountETH, uint256 liquidity)
+    {
         require(msg.value > 0, "No ETH");
         require(amountTokenDesired > 0, "No tokens");
 
