@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #050507;
+  --color-card-surface: #0a0a0e;
+  --color-card-elevated: #111116;
+  --color-foreground: #f4f4f6;
+  --color-muted: #8e8e9f;
+  --color-border-hairline: rgba(255, 255, 255, 0.08);
+  --color-border-glow: rgba(16, 185, 129, 0.35);
+  --color-emerald-pump: #10b981;
+  --color-crimson-dump: #ef4444;
+  --color-electric-gold: #f59e0b;
+  --color-cyber-violet: #8b5cf6;
+}
+
+@layer base {
+  * {
+    border-color: rgba(255, 255, 255, 0.08);
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: #050507;
+    color: #f4f4f6;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+}
+
+/* Custom Cyber Glassmorphism & Micro-Glow Utilities */
+.glass-panel {
+  background: rgba(10, 10, 14, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.12);
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(17, 17, 24, 0.6) 0%, rgba(10, 10, 14, 0.85) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.4);
+}
+
+.glow-violet {
+  box-shadow: 0 0 24px -2px rgba(139, 92, 246, 0.45);
+}
+
+.glow-gold {
+  box-shadow: 0 0 24px -2px rgba(245, 158, 11, 0.45);
+}
+
+/* Cyber grid background overlay */
+.cyber-grid-bg {
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.07) 0%, transparent 60%),
+    radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050507;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Shimmer animation */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
