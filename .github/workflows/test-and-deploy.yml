@@ -1,0 +1,55 @@
+name: ApexLaunch CI/CD & Test Suite
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  forge-contracts-test:
+    name: Foundry Smart Contract Tests & Fuzzing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Foundry Forge Tests
+        working-directory: ./contracts
+        run: |
+          forge --version
+          forge test -vvv --fuzz-runs 256
+
+  frontend-build:
+    name: Next.js Frontend Production Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Build Next.js Production App
+        working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_CHAIN_ID: "11155111"
+          NEXT_PUBLIC_FACTORY_ADDRESS: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+          NEXT_PUBLIC_GRADUATOR_ADDRESS: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+          NEXT_PUBLIC_RPC_URL: "https://rpc.sepolia.org"
+        run: npm run build

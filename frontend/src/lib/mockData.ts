@@ -1,0 +1,207 @@
+import { LaunchpadToken } from "@/config/contracts";
+import { parseEther } from "viem";
+
+export interface TradeActivity {
+  id: string;
+  type: "buy" | "sell";
+  tokenAddress: string;
+  tokenSymbol: string;
+  ethAmount: string;
+  tokenAmount: string;
+  trader: string;
+  timestamp: number;
+  txHash: string;
+}
+
+export const INITIAL_SHOWCASE_TOKENS: LaunchpadToken[] = [
+  {
+    address: "0x75537828f2ce51be7289709686A69CbFDbB714F1",
+    poolAddress: "0xE451980132E65465d0a498c53f0b5227326Dd73F",
+    name: "Apex Cybernetics",
+    symbol: "APEX",
+    tokenURI: "ipfs://apex-meta",
+    creator: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    supplySold: parseEther("580000000"), // 580M sold (72.5% progress)
+    ethReserve: parseEther("3.05"),
+    currentPrice: BigInt("6200000000"), // 6.2 Gwei
+    graduated: false,
+    createdAt: Math.floor(Date.now() / 1000) - 7200,
+    metadata: {
+      description: "Flagship decentralized autonomous neural agent launchpad protocol on Sepolia testnet.",
+      image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80",
+      website: "https://apexlaunch.xyz",
+      twitter: "https://twitter.com/apexlaunch",
+      telegram: "https://t.me/apexlaunch",
+    },
+    marketCapEth: 6.2,
+    progressPercent: 72.6,
+    volume24hEth: 12.8,
+  },
+  {
+    address: "0x5392A33F7F677f59e833FEBF4016cDDD88fF9E67",
+    poolAddress: "0xa783CDc72e34a174CCa57a6d9a74904d0Bec05A9",
+    name: "Nova Quantum",
+    symbol: "NOVA",
+    tokenURI: "ipfs://nova-meta",
+    creator: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    supplySold: parseEther("800000000"), // 100% curve sold -> Graduated!
+    ethReserve: parseEther("4.2"),
+    currentPrice: BigInt("9500000000"),
+    graduated: true,
+    dexPair: "0xA16E02E87b7454126e5e10d957A927a7F5b5d2be",
+    createdAt: Math.floor(Date.now() / 1000) - 86400,
+    metadata: {
+      description: "First hyper-quantum liquidity token graduated directly to Uniswap DEX with 100% LP burned.",
+      image: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=300&q=80",
+      website: "https://novaquantum.fi",
+      twitter: "https://twitter.com/novaquantum",
+      telegram: "https://t.me/novaquantum",
+    },
+    marketCapEth: 9.5,
+    progressPercent: 100,
+    volume24hEth: 28.4,
+  },
+  {
+    address: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+    poolAddress: "0x2546BcD3c84621e976D8185a91A922aE77ECEc30",
+    name: "HyperSonic AI",
+    symbol: "HSONIC",
+    tokenURI: "ipfs://hsonic-meta",
+    creator: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    supplySold: parseEther("320000000"),
+    ethReserve: parseEther("1.42"),
+    currentPrice: BigInt("3100000000"),
+    graduated: false,
+    createdAt: Math.floor(Date.now() / 1000) - 18000,
+    metadata: {
+      description: "Sub-millisecond inference token routing model with bonding curve auto-balancing.",
+      image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=300&q=80",
+      website: "https://hypersonic.network",
+      twitter: "https://twitter.com/hypersonicai",
+    },
+    marketCapEth: 3.1,
+    progressPercent: 33.8,
+    volume24hEth: 6.9,
+  },
+  {
+    address: "0xdD2FD4581271e230360230F9337D5c0430Bf44C0",
+    poolAddress: "0xbDA5747bFD65F08deb54cb465eB87D40e51B197E",
+    name: "ShadowMatrix",
+    symbol: "SHADOW",
+    tokenURI: "ipfs://shadow-meta",
+    creator: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    supplySold: parseEther("760000000"),
+    ethReserve: parseEther("3.95"),
+    currentPrice: BigInt("8800000000"),
+    graduated: false,
+    createdAt: Math.floor(Date.now() / 1000) - 3400,
+    metadata: {
+      description: "Dark liquidity pool aggregator near graduation to DEX. 94% threshold achieved.",
+      image: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=300&q=80",
+      website: "https://shadowmatrix.cash",
+      twitter: "https://twitter.com/shadowmatrix",
+    },
+    marketCapEth: 8.8,
+    progressPercent: 94.0,
+    volume24hEth: 18.2,
+  },
+  {
+    address: "0x2546BcD3c84621e976D8185a91A922aE77ECEc30",
+    poolAddress: "0xcd3B766CCDd6AE721141F452C550Ca635964ce71",
+    name: "Singularity Eth",
+    symbol: "SINGU",
+    tokenURI: "ipfs://singu-meta",
+    creator: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+    supplySold: parseEther("800000000"),
+    ethReserve: parseEther("4.2"),
+    currentPrice: BigInt("9500000000"),
+    graduated: true,
+    dexPair: "0x6789012345678901234567890123456789012345",
+    createdAt: Math.floor(Date.now() / 1000) - 172800,
+    metadata: {
+      description: "Zero-loss yield amplifier. Graduated DEX pool locked indefinitely.",
+      image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80",
+    },
+    marketCapEth: 9.5,
+    progressPercent: 100,
+    volume24hEth: 42.1,
+  },
+  {
+    address: "0xcd3B766CCDd6AE721141F452C550Ca635964ce71",
+    poolAddress: "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955",
+    name: "ChronoPulse",
+    symbol: "PULSE",
+    tokenURI: "ipfs://pulse-meta",
+    creator: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+    supplySold: parseEther("110000000"),
+    ethReserve: parseEther("0.35"),
+    currentPrice: BigInt("1800000000"),
+    graduated: false,
+    createdAt: Math.floor(Date.now() / 1000) - 900,
+    metadata: {
+      description: "Block-precision timing consensus oracle. Anti-snipe period completed.",
+      image: "https://images.unsplash.com/photo-1642543492481-44e81e3914a7?auto=format&fit=crop&w=300&q=80",
+    },
+    marketCapEth: 1.8,
+    progressPercent: 8.3,
+    volume24hEth: 3.4,
+  },
+];
+
+export const INITIAL_TRADES: TradeActivity[] = [
+  {
+    id: "tx-1",
+    type: "buy",
+    tokenAddress: "0x75537828f2ce51be7289709686A69CbFDbB714F1",
+    tokenSymbol: "APEX",
+    ethAmount: "0.45",
+    tokenAmount: "72,580,000",
+    trader: "0x71C...a829",
+    timestamp: Math.floor(Date.now() / 1000) - 24,
+    txHash: "0x9f81a74284b1239c812039481239103981290381023981023812093810293812",
+  },
+  {
+    id: "tx-2",
+    type: "buy",
+    tokenAddress: "0xdD2FD4581271e230360230F9337D5c0430Bf44C0",
+    tokenSymbol: "SHADOW",
+    ethAmount: "1.20",
+    tokenAmount: "135,000,000",
+    trader: "0x3dA...8821",
+    timestamp: Math.floor(Date.now() / 1000) - 86,
+    txHash: "0x8192a01928301928301928301928301928301928301928301928301928301928",
+  },
+  {
+    id: "tx-3",
+    type: "sell",
+    tokenAddress: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+    tokenSymbol: "HSONIC",
+    ethAmount: "0.28",
+    tokenAmount: "45,000,000",
+    trader: "0xF21...91bB",
+    timestamp: Math.floor(Date.now() / 1000) - 180,
+    txHash: "0x4441a01928301928301928301928301928301928301928301928301928301928",
+  },
+  {
+    id: "tx-4",
+    type: "buy",
+    tokenAddress: "0x5392A33F7F677f59e833FEBF4016cDDD88fF9E67",
+    tokenSymbol: "NOVA",
+    ethAmount: "0.75",
+    tokenAmount: "78,900,000",
+    trader: "0x98b...321C",
+    timestamp: Math.floor(Date.now() / 1000) - 340,
+    txHash: "0x1298a01928301928301928301928301928301928301928301928301928301928",
+  },
+  {
+    id: "tx-5",
+    type: "buy",
+    tokenAddress: "0xcd3B766CCDd6AE721141F452C550Ca635964ce71",
+    tokenSymbol: "PULSE",
+    ethAmount: "0.15",
+    tokenAmount: "52,000,000",
+    trader: "0x44c...555A",
+    timestamp: Math.floor(Date.now() / 1000) - 560,
+    txHash: "0x9923a01928301928301928301928301928301928301928301928301928301928",
+  },
+];

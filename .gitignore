@@ -1,0 +1,29 @@
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+.pnp
+.pnp.js
+
+# Foundry & Solc
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/reports/
+*.gas-snapshot
+bin/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.production
+.env*.local
+
+# System & OS
+.DS_Store
+*.pem
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
