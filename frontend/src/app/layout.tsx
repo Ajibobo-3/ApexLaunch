@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "./tailwind.css";
+import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export default function RootLayout({
       lang="en"
       className="h-full antialiased dark"
     >
-      <body className="min-h-full flex flex-col selection:bg-emerald-500 selection:text-black font-sans">
+      <body className="min-h-full flex flex-col bg-[#050507] text-[#f4f4f6] selection:bg-emerald-500 selection:text-black font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>

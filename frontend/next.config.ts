@@ -5,12 +5,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  outputFileTracingRoot: "/Users/olatundeolasunkanmi/Desktop/ApexLaunch",
-  webpack: (config) => {
-    config.resolve.fallback = { fs: false, net: false, tls: false };
-    config.externals.push("pino-pretty", "lokijs", "encoding");
-    return config;
-  },
+  outputFileTracingRoot: "/Users/olatundeolasunkanmi/Desktop/Tunde_Visuals/ApexLaunch",
 };
 
 export default nextConfig;
