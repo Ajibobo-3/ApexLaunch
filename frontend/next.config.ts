@@ -1,3 +1,4 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -5,7 +6,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  outputFileTracingRoot: "/Users/olatundeolasunkanmi/Desktop/Tunde_Visuals/ApexLaunch",
+  // Keep tracing rooted at this Next.js app so Vercel builds don't
+  // depend on a local machine path for the monorepo parent.
+  outputFileTracingRoot: path.join(__dirname),
 };
 
 export default nextConfig;
