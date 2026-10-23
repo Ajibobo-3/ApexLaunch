@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { formatEther } from "viem";
 import { Flame, Sparkles, Globe, Send, Lock, ChevronRight } from "lucide-react";
 import { XIcon } from "@/components/ui/Icons";
@@ -14,6 +14,12 @@ interface TokenCardProps {
 }
 
 export function TokenCard({ token, isSelected, onSelect }: TokenCardProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const isGraduated = token.graduated || token.progressPercent >= 100;
   const currentEth = parseFloat(formatEther(token.ethReserve));
   const spotPriceGwei = (Number(token.currentPrice) / 1e9).toFixed(3);
@@ -54,7 +60,7 @@ export function TokenCard({ token, isSelected, onSelect }: TokenCardProps) {
             <div className="flex items-center gap-1.5 font-mono text-xs text-neutral-400">
               <span className="font-semibold text-emerald-400/90">${token.symbol}</span>
               <span>•</span>
-              <span>{formatTimeAgo(token.createdAt)}</span>
+              <span>{isMounted ? formatTimeAgo(token.createdAt) : ""}</span>
             </div>
           </div>
         </div>
